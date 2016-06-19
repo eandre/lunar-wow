@@ -96,6 +96,11 @@ func CopyDir(src, dst string, filter func(path string, info os.FileInfo) bool) (
 		}
 	}
 
+	src, err = filepath.Abs(src)
+	if err != nil {
+		return nil, err
+	}
+
 	err = filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -108,7 +113,12 @@ func CopyDir(src, dst string, filter func(path string, info os.FileInfo) bool) (
 			return err
 		}
 
-		targetPath := filepath.Join(dst, path[len(src)-1:])
+		path, err = filepath.Abs(path)
+		if err != nil {
+			return err
+		}
+
+		targetPath := filepath.Join(dst, path[len(src):])
 		if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
 			return err
 		}
