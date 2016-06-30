@@ -19,3 +19,7 @@ func ToFloat(s string) float32 {
 func Split(sep, str string, maxPieces int) []string {
 	return nil
 }
+
+func Find(str, substr string) bool {
+	return false
+}

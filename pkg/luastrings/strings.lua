@@ -32,10 +32,13 @@ luastrings.ToFloat = function(i)
 	return tonumber(i)
 end
 
-
 luastrings.Split = function(sep, str, maxPieces)
 	if maxPieces >= 0 then
 		return {strsplit(sep, str, maxPieces)}
 	end
 	return {strsplit(sep, str)}
+end
+
+luastrings.Find = function(str, substr)
+	return not not str:find(substr)
 end

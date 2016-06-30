@@ -1,9 +1,8 @@
 package wow
 
 type (
-	GroupIndex int
-	RaidRank   int
-	RaidRole   string
+	RaidRank int
+	RaidRole string
 )
 
 const (
@@ -12,10 +11,10 @@ const (
 	RaidRankLeader    RaidRank = 2
 )
 
-func GetNumGroupMembers() GroupIndex {
+func GetNumGroupMembers() int {
 	return 0
 }
 
-func GetRaidRosterInfo(idx GroupIndex) (name string, rank RaidRank, subgroup, level int, class, fileName, zone string, online, isDead bool, role RaidRole, masterLooter bool) {
+func GetRaidRosterInfo(idx int) (name string, rank RaidRank, subgroup, level int, class, fileName, zone string, online, isDead bool, role RaidRole, masterLooter bool) {
 	return "", 0, 0, 0, "", "", "", false, false, "", false
 }

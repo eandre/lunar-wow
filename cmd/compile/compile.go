@@ -1,11 +1,12 @@
 package main
 
 import (
+	"encoding/json"
+	"errors"
 	"flag"
 	"io/ioutil"
 	"log"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 
@@ -13,18 +14,32 @@ import (
 	"golang.org/x/tools/go/loader"
 )
 
+type Lib struct {
+	Path   string   `json:"path"`
+	TOC    []string `json:"toc"`
+	Embeds []string `json:"embeds"`
+}
+
+type Addon struct {
+	Title          string   `json:"title"`
+	Description    string   `json:"description"`
+	SavedVariables []string `json:"saved_variables"`
+	Assets         string   `json:"assets"`
+	ImportPath     string   `json:"import_path"`
+	Libs           []Lib    `json:"libs"`
+}
+
 func main() {
-	var (
-		output  = flag.String("output", "./output", "Output directory")
-		strip   = flag.String("strip", "", "Path prefix to strip")
-		lualibs = flag.String("lualibs", "", "Path to libs.json")
-		assets  = flag.String("assets", "", "Path to assets dir")
-	)
+	output := flag.String("output", "./output", "Output directory")
 	flag.Parse()
-	*strip = path.Clean(*strip)
+
+	addon, err := parseAddon(flag.Args())
+	if err != nil {
+		log.Fatalln("Could not parse addon:", err)
+	}
 
 	var conf loader.Config
-	_, err := conf.FromArgs(flag.Args(), false)
+	_, err = conf.FromArgs([]string{addon.ImportPath}, false)
 	if err != nil {
 		log.Fatalln("Could not load packages:", err)
 	}
@@ -53,14 +68,6 @@ func main() {
 		}
 
 		path := pkg.Pkg.Path()
-		if *strip != "" && strings.HasPrefix(path, *strip) {
-			path = path[len(*strip):]
-			// If the path starts with a slash, strip it
-			if strings.HasPrefix(path, "/") {
-				path = path[1:]
-			}
-		}
-
 		pkgPath := filepath.Join(*output, path)
 		if err := os.MkdirAll(pkgPath, 0755); err != nil {
 			log.Fatalln("Could not create directory:", err)
@@ -97,8 +104,8 @@ func main() {
 	}
 
 	// Copy libs
-	if *lualibs != "" {
-		tocPaths, err := CopyLibs(*lualibs, *output)
+	if len(addon.Libs) > 0 {
+		tocPaths, err := CopyLibs(addon.Libs, *output)
 		if err != nil {
 			log.Fatalf("Could not copy lualibs: %v", err)
 		}
@@ -106,18 +113,18 @@ func main() {
 	}
 
 	// Copy assets
-	if *assets != "" {
-		if _, err := CopyDir(*assets, filepath.Join(*output, "assets"), nil); err != nil {
+	if addon.Assets != "" {
+		if _, err := CopyDir(addon.Assets, filepath.Join(*output, "assets"), nil); err != nil {
 			log.Fatalf("Could not copy assets: %v", err)
 		}
 	}
 
-	if err := writePackage(prog, *output, pkgName, filenames); err != nil {
+	if err := writePackage(prog, addon, *output, pkgName, filenames); err != nil {
 		log.Fatalf("Could not write package: %v", err)
 	}
 }
 
-func writePackage(prog *loader.Program, root, pkgName string, filenames []string) error {
+func writePackage(prog *loader.Program, addon *Addon, root, pkgName string, filenames []string) error {
 	prelude, err := os.Create(filepath.Join(root, "_prelude.lua"))
 	if err != nil {
 		return err
@@ -142,12 +149,26 @@ func writePackage(prog *loader.Program, root, pkgName string, filenames []string
 	defer toc.Close()
 	var tw tocWriter
 	tw.AddKey("Interface", "60200")
-	tw.AddKey("Title", "Next Pull")
-	tw.AddKey("SavedVariables", "NextPullDB")
+	tw.AddKey("Title", addon.Title)
+	tw.AddKey("SavedVariables", strings.Join(addon.SavedVariables, ", "))
 	tw.AddFile("_prelude.lua")
 	for _, fn := range filenames {
 		tw.AddFile(fn)
 	}
 	tw.AddFile("_postlude.lua")
 	return tw.Output(toc)
+}
+
+func parseAddon(args []string) (*Addon, error) {
+	if len(args) == 0 {
+		return nil, errors.New("no addons.json path specified")
+	}
+
+	data, err := ioutil.ReadFile(args[0])
+	if err != nil {
+		return nil, err
+	}
+	var addon Addon
+	err = json.Unmarshal(data, &addon)
+	return &addon, err
 }

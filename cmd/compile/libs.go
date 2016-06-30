@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -10,30 +9,11 @@ import (
 	"strings"
 )
 
-type LibsMetadata struct {
-	Libs []struct {
-		Path   string   `json:"path"`
-		TOC    []string `json:"toc"`
-		Embeds []string `json:"embeds"`
-	} `json:"libs"`
-}
-
-func CopyLibs(metadataPath, output string) (tocPaths []string, err error) {
-	metadataBytes, err := ioutil.ReadFile(metadataPath)
-	if err != nil {
-		return nil, err
-	}
-	var metadata LibsMetadata
-	if err := json.Unmarshal(metadataBytes, &metadata); err != nil {
-		return nil, err
-	}
-
-	baseDir := filepath.Dir(metadataPath)
+func CopyLibs(libs []Lib, output string) (tocPaths []string, err error) {
 	var embeds []string
-	for _, lib := range metadata.Libs {
-		srcPath := filepath.Join(baseDir, lib.Path)
+	for _, lib := range libs {
 		dstPath := filepath.Join(output, "lualibs", lib.Path)
-		paths, err := CopyDir(srcPath, dstPath, nil)
+		paths, err := CopyDir(lib.Path, dstPath, nil)
 		if err != nil {
 			return nil, err
 		}
